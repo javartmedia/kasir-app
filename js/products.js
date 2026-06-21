@@ -9,25 +9,15 @@ const Products = (() => {
     // ===================== INITIALIZATION =====================
 
     function init() {
-        console.log('Products.init called');
         renderTable();
         renderStats();
         renderCategoryFilter();
         bindEvents();
-        console.log('Products.init done');
     }
 
     function bindEvents() {
-        console.log('bindEvents called');
         // Add product
-        const btn = document.getElementById('btn-add-product');
-        console.log('btn-add-product:', btn);
-        if (btn) {
-            btn.addEventListener('click', openForm);
-            console.log('event listener added');
-        } else {
-            console.error('btn-add-product NOT FOUND!');
-        }
+        document.getElementById('btn-add-product').addEventListener('click', openForm);
 
         // Form submit
         document.getElementById('product-form').addEventListener('submit', handleFormSubmit);
@@ -168,13 +158,11 @@ const Products = (() => {
     // ===================== FORM HANDLING =====================
 
     function openForm(productId = null) {
-        console.log('openForm called', productId);
         editingId = productId;
         const form = document.getElementById('product-form');
         const title = document.getElementById('modal-title');
         const idField = document.getElementById('form-product-id');
 
-        console.log('form:', form, 'title:', title, 'idField:', idField);
         form.reset();
 
         if (productId) {
@@ -199,14 +187,7 @@ const Products = (() => {
             idField.value = '';
         }
 
-        const modal = document.getElementById('product-modal');
-        console.log('product-modal element:', modal);
-        if (modal) {
-            App.openModal('product-modal');
-            console.log('modal classList after open:', modal.className);
-        } else {
-            console.error('product-modal NOT FOUND!');
-        }
+        App.openModal('product-modal');
         document.getElementById('form-name').focus();
     }
 

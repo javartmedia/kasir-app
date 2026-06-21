@@ -457,7 +457,7 @@ code {
     background: var(--white);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
-    overflow: hidden;
+    overflow-y: auto;
     border: 2px solid var(--border);
 }
 

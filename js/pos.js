@@ -132,6 +132,8 @@ const POS = (() => {
             radio.addEventListener('change', () => {
                 const isCash = radio.value === 'tunai';
                 document.getElementById('cash-payment').style.display = isCash ? 'block' : 'none';
+                document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('active'));
+                radio.closest('.payment-option').classList.add('active');
                 updateCheckoutButton();
             });
         });
