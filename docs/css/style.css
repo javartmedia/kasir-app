@@ -1828,7 +1828,7 @@ textarea:focus {
 
 /* --- Cart scroll fix --- */
 .cart-items {
-    max-height: 45vh;
+    min-height: 340px;
     overflow-y: auto;
 }
 
