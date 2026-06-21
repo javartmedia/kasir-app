@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KasirKu — Manajemen Produk</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">🛒 KasirKu</h1>
+            <p class="tagline">Sistem Kasir Modern</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="nav-link">
+                <span class="nav-icon">💰</span>
+                <span class="nav-text">Kasir</span>
+            </a>
+            <a href="products.html" class="nav-link active">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Produk</span>
+            </a>
+            <a href="reports.html" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Rekapan</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div id="current-datetime" class="datetime"></div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="page-header">
+            <h2>📦 Manajemen Produk</h2>
+            <div class="header-actions">
+                <button id="btn-add-product" class="btn btn-primary">➕ Tambah Produk</button>
+                <button id="btn-export-csv" class="btn btn-outline" title="Export CSV">📤 Export CSV</button>
+                <label class="btn btn-outline btn-import" title="Import CSV">
+                    📥 Import CSV
+                    <input type="file" id="import-csv" accept=".csv" style="display:none;">
+                </label>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-total-products">0</span>
+                <span class="stat-label">Total Produk</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-categories">0</span>
+                <span class="stat-label">Kategori</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-low-stock" style="color: #f44336;">0</span>
+                <span class="stat-label">Stok Rendah</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-out-of-stock" style="color: #ff9800;">0</span>
+                <span class="stat-label">Stok Habis</span>
+            </div>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-products" placeholder="Cari produk..." autocomplete="off">
+            </div>
+            <select id="filter-category">
+                <option value="">Semua Kategori</option>
+            </select>
+            <select id="filter-stock">
+                <option value="">Semua Stok</option>
+                <option value="available">Tersedia</option>
+                <option value="low">Stok Rendah (≤5)</option>
+                <option value="empty">Habis (0)</option>
+            </select>
+        </div>
+
+        <!-- Products Table -->
+        <div class="table-container">
+            <table class="data-table" id="products-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama Produk</th>
+                        <th>Kategori</th>
+                        <th>Harga</th>
+                        <th>Stok</th>
+                        <th>Dibuat</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="products-tbody">
+                    <!-- Rows rendered by JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display:none;">
+            <span class="empty-icon">📭</span>
+            <p>Belum ada produk</p>
+            <button class="btn btn-primary" onclick="Products.openForm()">Tambah Produk Pertama</button>
+        </div>
+    </main>
+
+    <!-- Product Form Modal -->
+    <div id="product-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Tambah Produk</h3>
+                <button class="modal-close" onclick="App.closeModal('product-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="product-form">
+                    <input type="hidden" id="form-product-id">
+                    <div class="form-group">
+                        <label for="form-name">Nama Produk *</label>
+                        <input type="text" id="form-name" required placeholder="Contoh: Nasi Goreng">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-category">Kategori *</label>
+                            <select id="form-category" required>
+                                <option value="">Pilih Kategori</option>
+                                <option value="Makanan">🍱 Makanan</option>
+                                <option value="Minuman">🥤 Minuman</option>
+                                <option value="Lainnya">📦 Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="form-custom-category">Atau Kategori Baru</label>
+                            <input type="text" id="form-custom-category" placeholder="Kategori custom...">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-price">Harga (Rp) *</label>
+                            <input type="number" id="form-price" required min="0" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="form-stock">Stok *</label>
+                            <input type="number" id="form-stock" required min="0" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Simpan</button>
+                        <button type="button" class="btn btn-outline" onclick="App.closeModal('product-modal')">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal confirm-dialog">
+            <div class="modal-body">
+                <p class="confirm-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="confirm-yes btn btn-danger">Ya, Lanjutkan</button>
+                <button class="confirm-no btn btn-outline">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/products.js"></script>
+</body>
+</html>

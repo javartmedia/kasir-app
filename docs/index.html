@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KasirKu — Sistem Kasir</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">🛒 KasirKu</h1>
+            <p class="tagline">Sistem Kasir Modern</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="nav-link active">
+                <span class="nav-icon">💰</span>
+                <span class="nav-text">Kasir</span>
+            </a>
+            <a href="products.html" class="nav-link">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Produk</span>
+            </a>
+            <a href="reports.html" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Rekapan</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div id="current-datetime" class="datetime"></div>
+            <div id="low-stock-alert" class="low-stock-badge" style="display:none;">
+                ⚠️ <span id="low-stock-count">0</span> stok rendah
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content pos-layout">
+        <header class="page-header">
+            <h2>Kasir / Point of Sale</h2>
+            <div class="header-actions">
+                <button id="btn-new-transaction" class="btn btn-outline" title="Transaksi Baru">
+                    🔄 Transaksi Baru
+                </button>
+            </div>
+        </header>
+
+        <div class="pos-body">
+            <!-- Left: Product Grid -->
+            <section class="pos-products">
+                <!-- Search & Filter -->
+                <div class="pos-toolbar">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="search-product" placeholder="Cari produk..." autocomplete="off">
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-category">
+                            <option value="">Semua Kategori</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Product Grid -->
+                <div id="product-grid" class="product-grid">
+                    <!-- Products rendered here by JS -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-products" class="empty-state" style="display:none;">
+                    <span class="empty-icon">📭</span>
+                    <p>Tidak ada produk ditemukan</p>
+                    <a href="products.html" class="btn btn-primary btn-sm">Tambah Produk</a>
+                </div>
+            </section>
+
+            <!-- Right: Cart -->
+            <section class="pos-cart">
+                <div class="cart-header">
+                    <h3>🧾 Keranjang Belanja</h3>
+                    <span id="cart-count" class="cart-count">0 item</span>
+                </div>
+
+                <!-- Cart Items -->
+                <div id="cart-items" class="cart-items">
+                    <div id="empty-cart" class="empty-cart">
+                        <span>🛒</span>
+                        <p>Keranjang kosong</p>
+                        <small>Klik produk untuk menambahkan</small>
+                    </div>
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="cart-summary" id="cart-summary" style="display:none;">
+                    <div class="summary-row">
+                        <span>Subtotal</span>
+                        <span id="cart-subtotal">Rp 0</span>
+                    </div>
+                    <div class="summary-row discount-row">
+                        <span>
+                            Diskon
+                            <input type="number" id="discount-amount" class="discount-input" 
+                                   placeholder="Rp" min="0" value="0" style="display:none;">
+                            <button id="btn-toggle-discount" class="btn-discount-toggle" title="Tambah diskon">
+                                🏷️
+                            </button>
+                        </span>
+                        <span id="cart-discount">- Rp 0</span>
+                    </div>
+                    <div class="summary-row total-row">
+                        <span>TOTAL</span>
+                        <span id="cart-total">Rp 0</span>
+                    </div>
+                </div>
+
+                <!-- Payment Section -->
+                <div class="payment-section" id="payment-section" style="display:none;">
+                    <div class="payment-methods">
+                        <label class="payment-option active">
+                            <input type="radio" name="payment" value="tunai" checked>
+                            <span class="payment-icon">💵</span>
+                            <span class="payment-label">Tunai</span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="kartu">
+                            <span class="payment-icon">💳</span>
+                            <span class="payment-label">Kartu</span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="ewallet">
+                            <span class="payment-icon">📱</span>
+                            <span class="payment-label">E-Wallet</span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment" value="qris">
+                            <span class="payment-icon">📷</span>
+                            <span class="payment-label">QRIS</span>
+                        </label>
+                    </div>
+
+                    <div id="cash-payment" class="cash-payment">
+                        <label>Uang Dibayar</label>
+                        <div class="cash-input-group">
+                            <span class="currency-prefix">Rp</span>
+                            <input type="number" id="amount-paid" placeholder="0" min="0" value="">
+                        </div>
+                        <div class="quick-amounts">
+                            <button class="btn-quick-amount" data-amount="5000">5.000</button>
+                            <button class="btn-quick-amount" data-amount="10000">10.000</button>
+                            <button class="btn-quick-amount" data-amount="20000">20.000</button>
+                            <button class="btn-quick-amount" data-amount="50000">50.000</button>
+                            <button class="btn-quick-amount" data-amount="100000">100.000</button>
+                            <button class="btn-quick-amount" data-amount="200000">200.000</button>
+                            <button class="btn-quick-amount btn-exact" data-amount="exact">Uang Pas</button>
+                        </div>
+                        <div id="change-display" class="change-display" style="display:none;">
+                            <span>Kembalian</span>
+                            <span id="change-amount" class="change-amount">Rp 0</span>
+                        </div>
+                    </div>
+
+                    <button id="btn-checkout" class="btn btn-success btn-checkout" disabled>
+                        ✅ Proses Pembayaran
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Payment Success Modal -->
+    <div id="payment-modal" class="modal-overlay">
+        <div class="modal success-modal">
+            <div class="modal-header">
+                <h3>✅ Pembayaran Berhasil</h3>
+            </div>
+            <div id="receipt-content" class="receipt">
+                <!-- Receipt content generated by JS -->
+            </div>
+            <div class="modal-actions">
+                <button id="btn-print-receipt" class="btn btn-primary">🖨️ Cetak Struk</button>
+                <button id="btn-close-receipt" class="btn btn-outline">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal confirm-dialog">
+            <div class="modal-body">
+                <p class="confirm-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="confirm-yes btn btn-danger">Ya, Lanjutkan</button>
+                <button class="confirm-no btn btn-outline">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/pos.js"></script>
+</body>
+</html>
