@@ -18,13 +18,13 @@ Sistem kasir (Point of Sale) berbasis web yang dilengkapi dengan rekapan bulanan
 
 ### 📦 Manajemen Produk
 - CRUD produk (Tambah, Edit, Hapus)
-- Kategori produk: Makanan, Minuman, Lainnya + custom
+- Kategori produk: Sembako, Minuman, Lainnya + custom
 - Stok produk dengan badge peringatan stok rendah/habis
 - Statistik: total produk, kategori, stok rendah, stok habis
 - Pencarian & filter (kategori, status stok)
 - Export produk ke CSV
 - Import produk dari CSV
-- 18 produk contoh (dummy data) tersedia otomatis
+- 18 produk contoh (sembako & minuman) tersedia otomatis
 
 ### 📊 Rekapan Bulanan
 - Filter laporan berdasarkan bulan & tahun
@@ -98,7 +98,7 @@ Lalu buka `http://localhost:8080` di browser.
 - Dibangun tanpa framework/library eksternal
 - Semua grafik menggunakan Canvas API native
 - Kompatibel dengan Chrome, Firefox, Edge (modern browsers)
-- Data contoh (18 produk makanan/minuman) akan otomatis dimuat saat pertama kali dibuka
+- Data contoh (18 produk sembako & minuman) akan otomatis dimuat saat pertama kali dibuka
 
 ---
 

@@ -129,7 +129,7 @@ const App = (() => {
     // ===================== PRODUCT CATEGORY COLORS =====================
 
     const categoryColors = {
-        'Makanan': '#4CAF50',
+        'Sembako': '#4CAF50',
         'Minuman': '#2196F3',
         'Lainnya': '#FF9800',
     };
@@ -140,7 +140,7 @@ const App = (() => {
 
     function getCategoryEmoji(category) {
         const emojis = {
-            'Makanan': '🍱',
+            'Sembako': '🏪',
             'Minuman': '🥤',
             'Lainnya': '📦',
         };
