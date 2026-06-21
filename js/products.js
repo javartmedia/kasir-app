@@ -177,7 +177,7 @@ const Products = (() => {
             document.getElementById('form-stock').value = product.stock;
 
             // If category doesn't match standard options, set custom
-            const standardCats = ['Makanan', 'Minuman', 'Lainnya'];
+            const standardCats = ['Sembako', 'Minuman', 'Lainnya'];
             if (!standardCats.includes(product.category)) {
                 document.getElementById('form-category').value = 'Lainnya';
                 document.getElementById('form-custom-category').value = product.category;
