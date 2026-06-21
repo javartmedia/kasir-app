@@ -109,6 +109,10 @@ const Reports = (() => {
             currentSummary.totalItems;
         document.getElementById('summary-discount').textContent =
             App.formatCurrency(currentSummary.totalDiscount);
+        document.getElementById('summary-modal').textContent =
+            App.formatCurrency(currentSummary.totalModal);
+        document.getElementById('summary-profit').textContent =
+            App.formatCurrency(currentSummary.totalProfit);
     }
 
     // ===================== CHARTS =====================
@@ -315,6 +319,8 @@ const Reports = (() => {
         container.innerHTML = currentSummary.topProducts.map((product, i) => {
             const percentage = (product.revenue / maxRevenue) * 100;
             const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            const profit = product.profit || 0;
+            const margin = product.modal > 0 ? Math.round((profit / product.modal) * 100) : 0;
 
             return `
                 <div class="top-product-item">
@@ -322,7 +328,8 @@ const Reports = (() => {
                     <div class="top-product-info">
                         <span class="top-product-name">${product.name}</span>
                         <span class="top-product-detail">
-                            ${product.qty} terjual · ${App.formatCurrency(product.revenue)}
+                            ${product.qty} terjual · ${App.formatCurrency(product.revenue)} · Laba: ${App.formatCurrency(profit)}
+                            <span style="color:${margin >= 20 ? '#4CAF50' : '#FF9800'};font-weight:600"> (${margin}%)</span>
                         </span>
                         <div class="top-product-bar">
                             <div class="top-product-bar-fill" style="width: ${percentage}%; background: ${CHART_COLORS[i]}"></div>
@@ -363,6 +370,8 @@ const Reports = (() => {
         tbody.innerHTML = sorted.map(t => {
             const itemsSummary = t.items.map(i => `${i.name} x${i.qty}`).join(', ');
             const methodLabel = methodLabels[t.paymentMethod] || t.paymentMethod;
+            const modal = t.total_modal || 0;
+            const laba = t.total - modal;
 
             return `
                 <tr>
@@ -371,6 +380,8 @@ const Reports = (() => {
                     <td class="text-sm">${itemsSummary}</td>
                     <td class="text-right">${App.formatCurrency(t.subtotal)}</td>
                     <td class="text-right text-danger">- ${App.formatCurrency(t.totalDiscount || 0)}</td>
+                    <td class="text-right" style="color:#FF9800">${App.formatCurrency(modal)}</td>
+                    <td class="text-right" style="color:#4CAF50;font-weight:700">${App.formatCurrency(laba)}</td>
                     <td class="text-right font-bold">${App.formatCurrency(t.total)}</td>
                     <td>${methodLabel}</td>
                     <td class="text-right">${App.formatCurrency(t.amountPaid)}</td>

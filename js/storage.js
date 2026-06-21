@@ -54,6 +54,7 @@ const Storage = (() => {
         const products = getProducts();
         product.id = _generateProductId();
         product.createdAt = new Date().toISOString().split('T')[0];
+        product.purchase_price = product.purchase_price || 0;
         products.push(product);
         _set(KEYS.PRODUCTS, products);
 
@@ -192,6 +193,12 @@ const Storage = (() => {
         const transactions = getTransactions();
         transaction.id = _generateId('TRX');
         transaction.date = new Date().toISOString();
+
+        // Calculate total modal from purchase_price × qty per item
+        transaction.total_modal = transaction.items.reduce((sum, item) => {
+            return sum + (item.purchase_price || 0) * item.qty;
+        }, 0);
+
         transactions.push(transaction);
         _set(KEYS.TRANSACTIONS, transactions);
 
@@ -238,18 +245,22 @@ const Storage = (() => {
         let totalRevenue = 0;
         let totalDiscount = 0;
         let totalItems = 0;
+        let totalModal = 0;
         const productSales = {};
 
         transactions.forEach(t => {
             totalRevenue += t.total;
             totalDiscount += t.totalDiscount || 0;
+            totalModal += t.total_modal || 0;
             t.items.forEach(item => {
                 totalItems += item.qty;
                 if (!productSales[item.name]) {
-                    productSales[item.name] = { qty: 0, revenue: 0 };
+                    productSales[item.name] = { qty: 0, revenue: 0, modal: 0, profit: 0 };
                 }
                 productSales[item.name].qty += item.qty;
                 productSales[item.name].revenue += item.subtotal;
+                productSales[item.name].modal += (item.purchase_price || 0) * item.qty;
+                productSales[item.name].profit += item.subtotal - (item.purchase_price || 0) * item.qty;
             });
         });
 
@@ -270,6 +281,8 @@ const Storage = (() => {
             totalRevenue: totalRevenue,
             totalDiscount: totalDiscount,
             totalItems: totalItems,
+            totalModal: totalModal,
+            totalProfit: totalRevenue - totalModal,
             averagePerTransaction: transactions.length > 0
                 ? Math.round(totalRevenue / transactions.length) : 0,
             dailySales: dailySales,
@@ -285,8 +298,8 @@ const Storage = (() => {
         const products = getProducts();
         if (products.length === 0) return;
 
-        const headers = ['ID', 'Nama Produk', 'Kategori', 'Harga', 'Stok', 'Tanggal Dibuat'];
-        const rows = products.map(p => [p.id, p.name, p.category, p.price, p.stock, p.createdAt]);
+        const headers = ['ID', 'Nama Produk', 'Kategori', 'Harga Jual', 'Harga Beli', 'Stok', 'Tanggal Dibuat'];
+        const rows = products.map(p => [p.id, p.name, p.category, p.price, p.purchase_price || 0, p.stock, p.createdAt]);
 
         downloadCSV(headers, rows, 'produk_' + _getDateStamp() + '.csv');
     }
@@ -295,18 +308,24 @@ const Storage = (() => {
         const summary = getMonthlySummary(year, month);
         if (summary.transactions.length === 0) return;
 
-        const headers = ['No Transaksi', 'Tanggal', 'Item', 'Subtotal', 'Diskon', 'Total', 'Metode Bayar', 'Dibayar', 'Kembalian'];
-        const rows = summary.transactions.map(t => [
-            t.id,
-            new Date(t.date).toLocaleString('id-ID'),
-            t.items.map(i => i.name + ' x' + i.qty).join('; '),
-            t.subtotal,
-            t.totalDiscount || 0,
-            t.total,
-            t.paymentMethod,
-            t.amountPaid,
-            t.change,
-        ]);
+        const headers = ['No Transaksi', 'Tanggal', 'Item', 'Subtotal', 'Diskon', 'Modal', 'Laba', 'Total', 'Metode Bayar', 'Dibayar', 'Kembalian'];
+        const rows = summary.transactions.map(t => {
+            const modal = t.total_modal || 0;
+            const laba = t.total - modal;
+            return [
+                t.id,
+                new Date(t.date).toLocaleString('id-ID'),
+                t.items.map(i => i.name + ' x' + i.qty).join('; '),
+                t.subtotal,
+                t.totalDiscount || 0,
+                modal,
+                laba,
+                t.total,
+                t.paymentMethod,
+                t.amountPaid,
+                t.change,
+            ];
+        });
 
         const monthStr = String(month + 1).padStart(2, '0');
         downloadCSV(headers, rows, 'laporan_' + year + monthStr + '.csv');
@@ -315,12 +334,14 @@ const Storage = (() => {
     function exportSummaryCSV(year, month) {
         const summary = getMonthlySummary(year, month);
 
-        const headers = ['Periode', 'Total Transaksi', 'Total Omzet', 'Total Diskon', 'Total Item', 'Rata-rata/Transaksi'];
+        const headers = ['Periode', 'Total Transaksi', 'Total Omzet', 'Total Diskon', 'Total Modal', 'Laba Kotor', 'Total Item', 'Rata-rata/Transaksi'];
         const rows = [[
             year + '-' + String(month + 1).padStart(2, '0'),
             summary.totalTransactions,
             summary.totalRevenue,
             summary.totalDiscount,
+            summary.totalModal,
+            summary.totalProfit,
             summary.totalItems,
             summary.averagePerTransaction,
         ]];
@@ -396,19 +417,20 @@ const Storage = (() => {
                         const name = cols[1] ? cols[1].trim() : '';
                         const category = cols[2] ? cols[2].trim() : 'Lainnya';
                         const price = parseInt(cols[3]) || 0;
-                        const stock = parseInt(cols[4]) || 0;
-                        const createdAt = cols[5] ? cols[5].trim() : new Date().toISOString().split('T')[0];
+                        const purchase_price = parseInt(cols[4]) || 0;
+                        const stock = parseInt(cols[5]) || 0;
+                        const createdAt = cols[6] ? cols[6].trim() : new Date().toISOString().split('T')[0];
 
                         if (!name) continue;
 
                         const existingIndex = products.findIndex(p => p.id === id);
                         if (existingIndex !== -1) {
-                            products[existingIndex] = Object.assign({}, products[existingIndex], { name, category, price, stock });
+                            products[existingIndex] = Object.assign({}, products[existingIndex], { name, category, price, purchase_price, stock });
                             updated++;
                         } else {
                             products.push({
                                 id: id || _generateProductIdStatic(products.length + imported),
-                                name: name, category: category, price: price, stock: stock, createdAt: createdAt,
+                                name: name, category: category, price: price, purchase_price: purchase_price, stock: stock, createdAt: createdAt,
                             });
                             imported++;
                         }
@@ -515,24 +537,24 @@ const Storage = (() => {
         if (products.length > 0) return;
 
         const dummyProducts = [
-            { name: 'Beras Premium 5kg', category: 'Sembako', price: 65000, stock: 50 },
-            { name: 'Gula Pasir 1kg', category: 'Sembako', price: 14000, stock: 80 },
-            { name: 'Minyak Goreng 1L', category: 'Sembako', price: 18000, stock: 60 },
-            { name: 'Telur Ayam 1kg', category: 'Sembako', price: 28000, stock: 40 },
-            { name: 'Tepung Terigu 1kg', category: 'Sembako', price: 12000, stock: 45 },
-            { name: 'Garam Halus 500g', category: 'Sembako', price: 5000, stock: 70 },
-            { name: 'Kecap Manis 600ml', category: 'Sembako', price: 15000, stock: 55 },
-            { name: 'Sabun Mandi', category: 'Sembako', price: 8000, stock: 90 },
-            { name: 'Air Mineral 600ml', category: 'Minuman', price: 3000, stock: 200 },
-            { name: 'Teh Botol 500ml', category: 'Minuman', price: 5000, stock: 100 },
-            { name: 'Kopi Sachet', category: 'Minuman', price: 2000, stock: 150 },
-            { name: 'Susu Kental Manis', category: 'Minuman', price: 10000, stock: 70 },
-            { name: 'Minuman Ringan 250ml', category: 'Minuman', price: 6000, stock: 85 },
-            { name: 'Jus Kemasan 250ml', category: 'Minuman', price: 7000, stock: 60 },
-            { name: 'Susu UHT 1L', category: 'Minuman', price: 16000, stock: 40 },
-            { name: 'Mie Instan', category: 'Lainnya', price: 3500, stock: 200 },
-            { name: 'Biskuit 200g', category: 'Lainnya', price: 10000, stock: 75 },
-            { name: 'Korek Api', category: 'Lainnya', price: 2000, stock: 100 },
+            { name: 'Beras Premium 5kg', category: 'Sembako', price: 65000, purchase_price: 58000, stock: 50 },
+            { name: 'Gula Pasir 1kg', category: 'Sembako', price: 14000, purchase_price: 12000, stock: 80 },
+            { name: 'Minyak Goreng 1L', category: 'Sembako', price: 18000, purchase_price: 16000, stock: 60 },
+            { name: 'Telur Ayam 1kg', category: 'Sembako', price: 28000, purchase_price: 25000, stock: 40 },
+            { name: 'Tepung Terigu 1kg', category: 'Sembako', price: 12000, purchase_price: 10000, stock: 45 },
+            { name: 'Garam Halus 500g', category: 'Sembako', price: 5000, purchase_price: 4000, stock: 70 },
+            { name: 'Kecap Manis 600ml', category: 'Sembako', price: 15000, purchase_price: 13000, stock: 55 },
+            { name: 'Sabun Mandi', category: 'Sembako', price: 8000, purchase_price: 6500, stock: 90 },
+            { name: 'Air Mineral 600ml', category: 'Minuman', price: 3000, purchase_price: 2500, stock: 200 },
+            { name: 'Teh Botol 500ml', category: 'Minuman', price: 5000, purchase_price: 4200, stock: 100 },
+            { name: 'Kopi Sachet', category: 'Minuman', price: 2000, purchase_price: 1600, stock: 150 },
+            { name: 'Susu Kental Manis', category: 'Minuman', price: 10000, purchase_price: 8500, stock: 70 },
+            { name: 'Minuman Ringan 250ml', category: 'Minuman', price: 6000, purchase_price: 5000, stock: 85 },
+            { name: 'Jus Kemasan 250ml', category: 'Minuman', price: 7000, purchase_price: 5800, stock: 60 },
+            { name: 'Susu UHT 1L', category: 'Minuman', price: 16000, purchase_price: 13500, stock: 40 },
+            { name: 'Mie Instan', category: 'Lainnya', price: 3500, purchase_price: 2800, stock: 200 },
+            { name: 'Biskuit 200g', category: 'Lainnya', price: 10000, purchase_price: 8500, stock: 75 },
+            { name: 'Korek Api', category: 'Lainnya', price: 2000, purchase_price: 1500, stock: 100 },
         ];
 
         dummyProducts.forEach(p => addProduct(p));

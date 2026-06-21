@@ -95,7 +95,9 @@
                         <th>ID</th>
                         <th>Nama Produk</th>
                         <th>Kategori</th>
-                        <th>Harga</th>
+                        <th>Harga Jual</th>
+                        <th>Harga Beli</th>
+                        <th>Margin</th>
                         <th>Stok</th>
                         <th>Dibuat</th>
                         <th>Aksi</th>
@@ -146,13 +148,20 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="form-price">Harga (Rp) *</label>
+                            <label for="form-price">Harga Jual (Rp) *</label>
                             <input type="number" id="form-price" required min="0" placeholder="0">
                         </div>
+                        <div class="form-group">
+                            <label for="form-purchase-price">Harga Beli (Rp) *</label>
+                            <input type="number" id="form-purchase-price" required min="0" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="form-stock">Stok *</label>
                             <input type="number" id="form-stock" required min="0" placeholder="0">
                         </div>
+                        <div class="form-group"></div>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">💾 Simpan</button>

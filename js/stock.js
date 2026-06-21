@@ -67,11 +67,13 @@ const Stock = (() => {
         const movements = Storage.getStockMovements();
         const totalStock = products.reduce((s, p) => s + p.stock, 0);
         const stockValue = products.reduce((s, p) => s + (p.stock * p.price), 0);
+        const modalValue = products.reduce((s, p) => s + (p.stock * (p.purchase_price || 0)), 0);
         const lowStock = Storage.getLowStockProducts().length;
         const outOfStock = products.filter(p => p.stock === 0).length;
 
         document.getElementById('stat-total-stock').textContent = totalStock;
         document.getElementById('stat-stock-value').textContent = App.formatCurrency(stockValue);
+        document.getElementById('stat-modal-value').textContent = App.formatCurrency(modalValue);
         document.getElementById('stat-low-stock').textContent = lowStock;
         document.getElementById('stat-out-of-stock').textContent = outOfStock;
         document.getElementById('stat-movements').textContent = movements.length;
@@ -103,12 +105,13 @@ const Stock = (() => {
         const tbody = document.getElementById('stock-tbody');
 
         if (products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Tidak ada produk</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Tidak ada produk</td></tr>';
             return;
         }
 
         tbody.innerHTML = products.map(p => {
             const emoji = App.getCategoryEmoji(p.category);
+            const pp = p.purchase_price || 0;
             let statusBadge, statusClass;
             if (p.stock === 0) {
                 statusBadge = '❌ Habis';
@@ -131,8 +134,10 @@ const Stock = (() => {
                         </div>
                     </td>
                     <td>${p.category}</td>
+                    <td class="text-right">${App.formatCurrency(pp)}</td>
                     <td class="text-center"><strong style="font-size:1.1rem">${p.stock}</strong></td>
                     <td class="text-center"><span class="stock-badge ${statusClass}">${statusBadge}</span></td>
+                    <td class="text-right">${App.formatCurrency(p.stock * pp)}</td>
                     <td class="text-right">${App.formatCurrency(p.stock * p.price)}</td>
                     <td class="text-center">
                         <div class="action-buttons">

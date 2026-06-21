@@ -97,6 +97,9 @@ const Products = (() => {
             const color = App.getCategoryColor(p.category);
             const emoji = App.getCategoryEmoji(p.category);
             const stockClass = p.stock === 0 ? 'stock-empty' : p.stock <= 5 ? 'stock-low' : 'stock-ok';
+            const pp = p.purchase_price || 0;
+            const margin = pp > 0 ? Math.round((p.price - pp) / pp * 100) : 0;
+            const marginColor = margin >= 20 ? '#4CAF50' : margin >= 10 ? '#FF9800' : '#f44336';
 
             return `
                 <tr>
@@ -113,6 +116,10 @@ const Products = (() => {
                         </span>
                     </td>
                     <td class="text-right">${App.formatCurrency(p.price)}</td>
+                    <td class="text-right">${App.formatCurrency(pp)}</td>
+                    <td class="text-center">
+                        <span style="color:${marginColor};font-weight:700">${margin}%</span>
+                    </td>
                     <td class="text-center">
                         <span class="stock-badge ${stockClass}">${p.stock}</span>
                     </td>
@@ -174,6 +181,7 @@ const Products = (() => {
             document.getElementById('form-name').value = product.name;
             document.getElementById('form-category').value = product.category === 'Lainnya' ? 'Lainnya' : product.category;
             document.getElementById('form-price').value = product.price;
+            document.getElementById('form-purchase-price').value = product.purchase_price || 0;
             document.getElementById('form-stock').value = product.stock;
 
             // If category doesn't match standard options, set custom
@@ -198,6 +206,7 @@ const Products = (() => {
         let category = document.getElementById('form-category').value;
         const customCategory = document.getElementById('form-custom-category').value.trim();
         const price = parseInt(document.getElementById('form-price').value) || 0;
+        const purchase_price = parseInt(document.getElementById('form-purchase-price').value) || 0;
         const stock = parseInt(document.getElementById('form-stock').value) || 0;
 
         // Use custom category if provided
@@ -214,7 +223,11 @@ const Products = (() => {
             return;
         }
         if (price <= 0) {
-            App.showToast('Harga harus lebih dari 0!', 'error');
+            App.showToast('Harga jual harus lebih dari 0!', 'error');
+            return;
+        }
+        if (purchase_price < 0) {
+            App.showToast('Harga beli tidak boleh negatif!', 'error');
             return;
         }
         if (stock < 0) {
@@ -223,10 +236,10 @@ const Products = (() => {
         }
 
         if (editingId) {
-            Storage.updateProduct(editingId, { name, category, price, stock });
+            Storage.updateProduct(editingId, { name, category, price, purchase_price, stock });
             App.showToast('Produk berhasil diupdate!', 'success');
         } else {
-            Storage.addProduct({ name, category, price, stock });
+            Storage.addProduct({ name, category, price, purchase_price, stock });
             App.showToast('Produk berhasil ditambahkan!', 'success');
         }
 
