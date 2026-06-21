@@ -114,6 +114,11 @@ const POS = (() => {
         // New transaction
         document.getElementById('btn-new-transaction').addEventListener('click', resetCart);
 
+        // Cart count click — review popup
+        document.getElementById('cart-count').addEventListener('click', () => {
+            if (cart.length > 0) showReviewModal();
+        });
+
         // Discount toggle
         document.getElementById('btn-toggle-discount').addEventListener('click', () => {
             const input = document.getElementById('discount-amount');
@@ -490,6 +495,38 @@ const POS = (() => {
         `;
 
         App.openModal('payment-modal');
+    }
+
+    // ===================== REVIEW MODAL =====================
+
+    function showReviewModal() {
+        const body = document.getElementById('review-modal-body');
+
+        const rows = cart.map((item, i) => `
+            <div class="review-item">
+                <div class="review-item-header">
+                    <span class="review-item-name">${item.name}</span>
+                    <span class="review-item-price">${App.formatCurrency(item.price)}</span>
+                </div>
+                <div class="review-item-details">
+                    <span class="review-item-qty">Jumlah: <strong>${item.qty}</strong></span>
+                    ${item.discount > 0 ? `<span class="review-item-disc">Diskon: <strong>-${App.formatCurrency(item.discount)}</strong></span>` : ''}
+                    <span class="review-item-subtotal">Subtotal: <strong>${App.formatCurrency(item.subtotal)}</strong></span>
+                </div>
+            </div>
+        `).join('');
+
+        const total = getTotalAfterDiscount();
+
+        body.innerHTML = `
+            <div class="review-list">${rows}</div>
+            <div class="review-total">
+                <span>TOTAL</span>
+                <span>${App.formatCurrency(total)}</span>
+            </div>
+        `;
+
+        App.openModal('review-modal');
     }
 
     // ===================== PUBLIC API =====================
