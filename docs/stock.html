@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KasirKu — Manajemen Stok</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">🛒 KasirKu</h1>
+            <p class="tagline">Sistem Kasir Modern</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="nav-link">
+                <span class="nav-icon">💰</span>
+                <span class="nav-text">Kasir</span>
+            </a>
+            <a href="products.html" class="nav-link">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Produk</span>
+            </a>
+            <a href="stock.html" class="nav-link active">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">Stok</span>
+            </a>
+            <a href="reports.html" class="nav-link">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Rekapan</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div id="current-datetime" class="datetime"></div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="page-header">
+            <h2>📋 Manajemen Stok</h2>
+            <div class="header-actions">
+                <button id="btn-stock-in" class="btn btn-success">📥 Stok Masuk</button>
+                <button id="btn-stock-out" class="btn btn-warning">📤 Stok Keluar</button>
+                <button id="btn-adjust" class="btn btn-primary">⚖️ Penyesuaian</button>
+                <button id="btn-export-stock" class="btn btn-outline">📤 Export Kartu Stok</button>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-total-stock">0</span>
+                <span class="stat-label">Total Stok</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-stock-value" style="color:#2196F3;">Rp 0</span>
+                <span class="stat-label">Nilai Stok</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-low-stock" style="color:#f44336;">0</span>
+                <span class="stat-label">Stok Rendah</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-out-of-stock" style="color:#ff9800;">0</span>
+                <span class="stat-label">Stok Habis</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="stat-movements" style="color:#9C27B0;">0</span>
+                <span class="stat-label">Total Pergerakan</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="current">📦 Stok Saat Ini</button>
+            <button class="tab" data-tab="history">📜 Riwayat Pergerakan</button>
+        </div>
+
+        <!-- Tab: Current Stock -->
+        <div id="tab-current" class="tab-content active">
+            <div class="toolbar">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-stock" placeholder="Cari produk..." autocomplete="off">
+                </div>
+                <select id="filter-stock-status">
+                    <option value="">Semua Status</option>
+                    <option value="available">Tersedia</option>
+                    <option value="low">Stok Rendah (≤5)</option>
+                    <option value="empty">Habis (0)</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nama Produk</th>
+                            <th>Kategori</th>
+                            <th>Stok Saat Ini</th>
+                            <th>Status</th>
+                            <th>Nilai Stok</th>
+                            <th>Aksi Cepat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab: History -->
+        <div id="tab-history" class="tab-content">
+            <div class="toolbar">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-history" placeholder="Cari riwayat..." autocomplete="off">
+                </div>
+                <select id="filter-movement-type">
+                    <option value="">Semua Tipe</option>
+                    <option value="in">📥 Masuk</option>
+                    <option value="out">📤 Keluar</option>
+                    <option value="adjust">⚖️ Penyesuaian</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Produk</th>
+                            <th>Tipe</th>
+                            <th>Alasan</th>
+                            <th>Jumlah</th>
+                            <th>Sebelum</th>
+                            <th>Sesudah</th>
+                            <th>Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stock Movement Modal -->
+    <div id="stock-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Stok Masuk</h3>
+                <button class="modal-close" onclick="App.closeModal('stock-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="stock-form">
+                    <div class="form-group">
+                        <label for="form-product">Produk *</label>
+                        <select id="form-product" required>
+                            <option value="">Pilih Produk</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-reason">Alasan</label>
+                        <select id="form-reason">
+                            <option value="">— Pilih Alasan —</option>
+                        </select>
+                        <input type="text" id="form-reason-custom" placeholder="Atau ketik alasan lain..." style="margin-top:8px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="form-qty" id="qty-label">Jumlah *</label>
+                        <input type="number" id="form-qty" required min="0" placeholder="0">
+                        <small id="qty-hint" class="form-hint"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-note">Catatan (opsional)</label>
+                        <textarea id="form-note" rows="2" placeholder="Catatan tambahan..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Simpan</button>
+                        <button type="button" class="btn btn-outline" onclick="App.closeModal('stock-modal')">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal confirm-dialog">
+            <div class="modal-body">
+                <p class="confirm-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="confirm-yes btn btn-danger">Ya, Lanjutkan</button>
+                <button class="confirm-no btn btn-outline">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/stock.js"></script>
+</body>
+</html>

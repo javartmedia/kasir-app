@@ -1,6 +1,6 @@
 /**
- * storage.js — Modul Penyimpanan Data
- * Mengelola data produk & transaksi via localStorage
+ * storage.js - Modul Penyimpanan Data
+ * Mengelola data produk, transaksi & kartu stok via localStorage
  * Mendukung export/import CSV
  */
 
@@ -8,6 +8,7 @@ const Storage = (() => {
     const KEYS = {
         PRODUCTS: 'kasir_products',
         TRANSACTIONS: 'kasir_transactions',
+        STOCK_MOVEMENTS: 'kasir_stock_movements',
         SETTINGS: 'kasir_settings',
     };
 
@@ -30,7 +31,7 @@ const Storage = (() => {
         const items = _get(KEYS.TRANSACTIONS);
         const todayCount = items.filter(t => t.id.includes(datePart)).length;
         const seq = String(todayCount + 1).padStart(3, '0');
-        return `${prefix}-${datePart}-${seq}`;
+        return prefix + '-' + datePart + '-' + seq;
     }
 
     function _generateProductId() {
@@ -55,6 +56,19 @@ const Storage = (() => {
         product.createdAt = new Date().toISOString().split('T')[0];
         products.push(product);
         _set(KEYS.PRODUCTS, products);
+
+        if (product.stock > 0) {
+            addStockMovement({
+                productId: product.id,
+                productName: product.name,
+                type: 'in',
+                reason: 'Stok Awal',
+                qty: product.stock,
+                note: 'Produk baru ditambahkan',
+                stockBefore: 0,
+                stockAfter: product.stock,
+            });
+        }
         return product;
     }
 
@@ -62,7 +76,7 @@ const Storage = (() => {
         const products = getProducts();
         const index = products.findIndex(p => p.id === id);
         if (index === -1) return null;
-        products[index] = { ...products[index], ...updates };
+        products[index] = Object.assign({}, products[index], updates);
         _set(KEYS.PRODUCTS, products);
         return products[index];
     }
@@ -88,13 +102,84 @@ const Storage = (() => {
         return updateProduct(productId, { stock: product.stock + qty });
     }
 
-    function getLowStockProducts(threshold = 5) {
+    function getLowStockProducts(threshold) {
+        threshold = threshold || 5;
         return getProducts().filter(p => p.stock <= threshold);
     }
 
     function getCategories() {
         const products = getProducts();
         return [...new Set(products.map(p => p.category))].sort();
+    }
+
+    // ===================== STOCK MOVEMENTS (Kartu Stok) =====================
+
+    function getStockMovements() {
+        return _get(KEYS.STOCK_MOVEMENTS);
+    }
+
+    function addStockMovement(movement) {
+        const movements = getStockMovements();
+        movement.id = 'STK' + Date.now() + Math.floor(Math.random() * 1000);
+        movement.date = new Date().toISOString();
+        movements.push(movement);
+        _set(KEYS.STOCK_MOVEMENTS, movements);
+        return movement;
+    }
+
+    function getStockMovementsByProduct(productId) {
+        return getStockMovements()
+            .filter(m => m.productId === productId)
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    function deleteStockMovement(id) {
+        const movements = getStockMovements();
+        const filtered = movements.filter(m => m.id !== id);
+        if (filtered.length === movements.length) return false;
+        _set(KEYS.STOCK_MOVEMENTS, filtered);
+        return true;
+    }
+
+    function adjustStock(productId, type, qty, reason, note) {
+        note = note || '';
+        const product = getProductById(productId);
+        if (!product) return { success: false, message: 'Produk tidak ditemukan' };
+
+        qty = parseInt(qty);
+        if (isNaN(qty) || qty < 0) return { success: false, message: 'Jumlah tidak valid' };
+
+        let newStock = product.stock;
+        let movementQty = qty;
+        const stockBefore = product.stock;
+
+        if (type === 'in') {
+            newStock = product.stock + qty;
+        } else if (type === 'out') {
+            if (qty > product.stock) {
+                return { success: false, message: 'Stok tidak cukup. Tersedia: ' + product.stock };
+            }
+            newStock = product.stock - qty;
+        } else if (type === 'adjust') {
+            movementQty = qty - product.stock;
+            newStock = qty;
+        } else {
+            return { success: false, message: 'Tipe tidak valid' };
+        }
+
+        updateProduct(productId, { stock: newStock });
+        addStockMovement({
+            productId: productId,
+            productName: product.name,
+            type: type,
+            reason: reason || (type === 'in' ? 'Stok Masuk' : type === 'out' ? 'Stok Keluar' : 'Penyesuaian'),
+            qty: Math.abs(movementQty),
+            note: note,
+            stockBefore: stockBefore,
+            stockAfter: newStock,
+        });
+
+        return { success: true, newStock: newStock };
     }
 
     // ===================== TRANSACTIONS =====================
@@ -109,6 +194,23 @@ const Storage = (() => {
         transaction.date = new Date().toISOString();
         transactions.push(transaction);
         _set(KEYS.TRANSACTIONS, transactions);
+
+        transaction.items.forEach(item => {
+            const product = getProductById(item.productId);
+            if (product) {
+                addStockMovement({
+                    productId: item.productId,
+                    productName: item.name,
+                    type: 'out',
+                    reason: 'Penjualan',
+                    qty: item.qty,
+                    note: 'Transaksi ' + transaction.id,
+                    stockBefore: product.stock + item.qty,
+                    stockAfter: product.stock,
+                });
+            }
+        });
+
         return transaction;
     }
 
@@ -128,9 +230,7 @@ const Storage = (() => {
     }
 
     function getTransactionsByDate(dateStr) {
-        return getTransactions().filter(t => {
-            return t.date.startsWith(dateStr);
-        });
+        return getTransactions().filter(t => t.date.startsWith(dateStr));
     }
 
     function getMonthlySummary(year, month) {
@@ -161,21 +261,21 @@ const Storage = (() => {
         });
 
         const topProducts = Object.entries(productSales)
-            .map(([name, data]) => ({ name, ...data }))
+            .map(([name, data]) => Object.assign({ name: name }, data))
             .sort((a, b) => b.revenue - a.revenue)
             .slice(0, 5);
 
         return {
             totalTransactions: transactions.length,
-            totalRevenue,
-            totalDiscount,
-            totalItems,
+            totalRevenue: totalRevenue,
+            totalDiscount: totalDiscount,
+            totalItems: totalItems,
             averagePerTransaction: transactions.length > 0
                 ? Math.round(totalRevenue / transactions.length) : 0,
-            dailySales,
-            productSales,
-            topProducts,
-            transactions,
+            dailySales: dailySales,
+            productSales: productSales,
+            topProducts: topProducts,
+            transactions: transactions,
         };
     }
 
@@ -186,9 +286,7 @@ const Storage = (() => {
         if (products.length === 0) return;
 
         const headers = ['ID', 'Nama Produk', 'Kategori', 'Harga', 'Stok', 'Tanggal Dibuat'];
-        const rows = products.map(p => [
-            p.id, p.name, p.category, p.price, p.stock, p.createdAt
-        ]);
+        const rows = products.map(p => [p.id, p.name, p.category, p.price, p.stock, p.createdAt]);
 
         downloadCSV(headers, rows, 'produk_' + _getDateStamp() + '.csv');
     }
@@ -201,7 +299,7 @@ const Storage = (() => {
         const rows = summary.transactions.map(t => [
             t.id,
             new Date(t.date).toLocaleString('id-ID'),
-            t.items.map(i => `${i.name} x${i.qty}`).join('; '),
+            t.items.map(i => i.name + ' x' + i.qty).join('; '),
             t.subtotal,
             t.totalDiscount || 0,
             t.total,
@@ -211,7 +309,7 @@ const Storage = (() => {
         ]);
 
         const monthStr = String(month + 1).padStart(2, '0');
-        downloadCSV(headers, rows, `laporan_${year}${monthStr}.csv`);
+        downloadCSV(headers, rows, 'laporan_' + year + monthStr + '.csv');
     }
 
     function exportSummaryCSV(year, month) {
@@ -219,7 +317,7 @@ const Storage = (() => {
 
         const headers = ['Periode', 'Total Transaksi', 'Total Omzet', 'Total Diskon', 'Total Item', 'Rata-rata/Transaksi'];
         const rows = [[
-            `${year}-${String(month + 1).padStart(2, '0')}`,
+            year + '-' + String(month + 1).padStart(2, '0'),
             summary.totalTransactions,
             summary.totalRevenue,
             summary.totalDiscount,
@@ -228,17 +326,35 @@ const Storage = (() => {
         ]];
 
         const monthStr = String(month + 1).padStart(2, '0');
-        downloadCSV(headers, rows, `ringkasan_${year}${monthStr}.csv`);
+        downloadCSV(headers, rows, 'ringkasan_' + year + monthStr + '.csv');
+    }
+
+    function exportStockMovementsCSV() {
+        const movements = getStockMovements();
+        if (movements.length === 0) return;
+
+        const headers = ['Tanggal', 'ID Produk', 'Nama Produk', 'Tipe', 'Alasan', 'Jumlah', 'Stok Sebelum', 'Stok Sesudah', 'Catatan'];
+        const rows = movements.map(m => [
+            new Date(m.date).toLocaleString('id-ID'),
+            m.productId,
+            m.productName,
+            m.type === 'in' ? 'Masuk' : m.type === 'out' ? 'Keluar' : 'Penyesuaian',
+            m.reason,
+            m.qty,
+            m.stockBefore !== undefined ? m.stockBefore : '',
+            m.stockAfter !== undefined ? m.stockAfter : '',
+            m.note || '',
+        ]);
+
+        downloadCSV(headers, rows, 'kartu_stok_' + _getDateStamp() + '.csv');
     }
 
     function downloadCSV(headers, rows, filename) {
-        // BOM for UTF-8 Excel compatibility
         let csv = '\uFEFF';
         csv += headers.join(',') + '\n';
         rows.forEach(row => {
             csv += row.map(cell => {
                 const str = String(cell);
-                // Escape quotes & wrap if contains comma/newline
                 if (str.includes(',') || str.includes('"') || str.includes('\n')) {
                     return '"' + str.replace(/"/g, '""') + '"';
                 }
@@ -272,35 +388,34 @@ const Storage = (() => {
                     let imported = 0;
                     let updated = 0;
 
-                    // Skip header
                     for (let i = 1; i < lines.length; i++) {
                         const cols = _parseCSVLine(lines[i]);
                         if (cols.length < 4) continue;
 
-                        const id = cols[0]?.trim() || '';
-                        const name = cols[1]?.trim() || '';
-                        const category = cols[2]?.trim() || 'Lainnya';
+                        const id = cols[0] ? cols[0].trim() : '';
+                        const name = cols[1] ? cols[1].trim() : '';
+                        const category = cols[2] ? cols[2].trim() : 'Lainnya';
                         const price = parseInt(cols[3]) || 0;
                         const stock = parseInt(cols[4]) || 0;
-                        const createdAt = cols[5]?.trim() || new Date().toISOString().split('T')[0];
+                        const createdAt = cols[5] ? cols[5].trim() : new Date().toISOString().split('T')[0];
 
                         if (!name) continue;
 
                         const existingIndex = products.findIndex(p => p.id === id);
                         if (existingIndex !== -1) {
-                            products[existingIndex] = { ...products[existingIndex], name, category, price, stock };
+                            products[existingIndex] = Object.assign({}, products[existingIndex], { name, category, price, stock });
                             updated++;
                         } else {
                             products.push({
                                 id: id || _generateProductIdStatic(products.length + imported),
-                                name, category, price, stock, createdAt,
+                                name: name, category: category, price: price, stock: stock, createdAt: createdAt,
                             });
                             imported++;
                         }
                     }
 
                     _set(KEYS.PRODUCTS, products);
-                    resolve({ imported, updated });
+                    resolve({ imported: imported, updated: updated });
                 } catch (err) {
                     reject('Gagal membaca file CSV: ' + err.message);
                 }
@@ -355,12 +470,14 @@ const Storage = (() => {
     }
 
     function initData() {
-        // Initialize with empty arrays if not exist
         if (!localStorage.getItem(KEYS.PRODUCTS)) {
             _set(KEYS.PRODUCTS, []);
         }
         if (!localStorage.getItem(KEYS.TRANSACTIONS)) {
             _set(KEYS.TRANSACTIONS, []);
+        }
+        if (!localStorage.getItem(KEYS.STOCK_MOVEMENTS)) {
+            _set(KEYS.STOCK_MOVEMENTS, []);
         }
         if (!localStorage.getItem(KEYS.SETTINGS)) {
             _set(KEYS.SETTINGS, {
@@ -389,12 +506,13 @@ const Storage = (() => {
     function clearAllData() {
         localStorage.removeItem(KEYS.PRODUCTS);
         localStorage.removeItem(KEYS.TRANSACTIONS);
+        localStorage.removeItem(KEYS.STOCK_MOVEMENTS);
         initData();
     }
 
     function seedDummyData() {
         const products = getProducts();
-        if (products.length > 0) return; // Already has data
+        if (products.length > 0) return;
 
         const dummyProducts = [
             { name: 'Nasi Goreng Spesial', category: 'Makanan', price: 18000, stock: 50 },
@@ -421,33 +539,35 @@ const Storage = (() => {
     }
 
     return {
-        initData,
-        // Products
-        getProducts,
-        getProductById,
-        addProduct,
-        updateProduct,
-        deleteProduct,
-        updateStock,
-        restoreStock,
-        getLowStockProducts,
-        getCategories,
-        // Transactions
-        getTransactions,
-        addTransaction,
-        deleteTransaction,
-        getTransactionsByMonth,
-        getTransactionsByDate,
-        getMonthlySummary,
-        // CSV
-        exportProductsCSV,
-        exportTransactionsCSV,
-        exportSummaryCSV,
-        importProductsCSV,
-        // Settings & Utils
-        getSettings,
-        updateSettings,
-        clearAllData,
-        seedDummyData,
+        initData: initData,
+        getProducts: getProducts,
+        getProductById: getProductById,
+        addProduct: addProduct,
+        updateProduct: updateProduct,
+        deleteProduct: deleteProduct,
+        updateStock: updateStock,
+        restoreStock: restoreStock,
+        getLowStockProducts: getLowStockProducts,
+        getCategories: getCategories,
+        getStockMovements: getStockMovements,
+        getStockMovementsByProduct: getStockMovementsByProduct,
+        addStockMovement: addStockMovement,
+        deleteStockMovement: deleteStockMovement,
+        adjustStock: adjustStock,
+        exportStockMovementsCSV: exportStockMovementsCSV,
+        getTransactions: getTransactions,
+        addTransaction: addTransaction,
+        deleteTransaction: deleteTransaction,
+        getTransactionsByMonth: getTransactionsByMonth,
+        getTransactionsByDate: getTransactionsByDate,
+        getMonthlySummary: getMonthlySummary,
+        exportProductsCSV: exportProductsCSV,
+        exportTransactionsCSV: exportTransactionsCSV,
+        exportSummaryCSV: exportSummaryCSV,
+        importProductsCSV: importProductsCSV,
+        getSettings: getSettings,
+        updateSettings: updateSettings,
+        clearAllData: clearAllData,
+        seedDummyData: seedDummyData,
     };
 })();
